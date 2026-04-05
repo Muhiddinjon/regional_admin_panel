@@ -36,6 +36,7 @@ create table if not exists cc_logs (
   elite_driver_calls int default 0,
   resolved_by_cc int default 0,
   escalated_to_rm int default 0,
+  escalated_to_pm int default 0,
   escalation_reasons text,
   outgoing_inactive int default 0,
   outgoing_inactive_responded int default 0,
@@ -101,7 +102,7 @@ create table if not exists elite_calls (
   id uuid primary key default gen_random_uuid(),
   driver_id bigint not null,
   called_at date not null default current_date,
-  result text not null check (result in ('answered', 'no_answer', 'callback')),
+  result text not null check (result in ('answered', 'no_answer', 'callback', 'pm_escalated')),
   note text,
   called_by text,
   created_at timestamptz default now()
