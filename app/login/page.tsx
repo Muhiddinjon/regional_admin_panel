@@ -21,7 +21,7 @@ export default function LoginPage() {
     })
 
     if (res.ok) {
-      window.location.href = '/'
+      window.location.href = '/dashboard'
     } else {
       setError('Noto\'g\'ri parol')
     }

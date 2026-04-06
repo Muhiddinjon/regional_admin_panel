@@ -13,7 +13,8 @@ export function proxy(request: NextRequest) {
   if (!isProtected) return NextResponse.next()
 
   const token = request.cookies.get('admin_token')?.value
-  if (!token || token !== 'authenticated') {
+  const VALID_ROLES = ['rm', 'ops', 'checker']
+  if (!token || !VALID_ROLES.includes(token)) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
