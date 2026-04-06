@@ -1,18 +1,36 @@
-import supabase from '@/lib/supabase-db'
+import { redis, K } from '@/lib/redis'
 import { formatDate } from '@/lib/utils'
 import ResolveButton from './ResolveButton'
 
-async function getEscalations() {
-  const { data } = await supabase
-    .from('escalations')
-    .select('*, drivers(name, phone)')
-    .order('created_at', { ascending: false })
-    .limit(100)
-  return (data ?? []).map((e) => ({
-    ...e,
-    driver_name: (e.drivers as { name: string } | null)?.name ?? null,
-    driver_phone: (e.drivers as { phone: string } | null)?.phone ?? null,
-  }))
+interface Escalation {
+  id: string
+  date: string
+  driver_name: string
+  driver_phone: string
+  reason: string
+  description: string
+  source: string
+  status: string
+}
+
+function toEscalation(raw: Record<string, unknown>): Escalation {
+  return {
+    id: String(raw.id ?? ''),
+    date: String(raw.date ?? raw.created_at ?? ''),
+    driver_name: String(raw.driver_name ?? ''),
+    driver_phone: String(raw.driver_phone ?? ''),
+    reason: String(raw.reason ?? ''),
+    description: String(raw.description ?? ''),
+    source: String(raw.source ?? ''),
+    status: String(raw.status ?? 'open'),
+  }
+}
+
+async function getEscalations(): Promise<Escalation[]> {
+  const ids = await redis.zrange(K.ESCALATIONS, 0, -1, { rev: true })
+  if (!ids || ids.length === 0) return []
+  const raws = await Promise.all((ids as string[]).slice(0, 100).map(id => redis.hgetall(K.ESCALATION(id))))
+  return raws.filter(Boolean).map(r => toEscalation(r as Record<string, unknown>))
 }
 
 const statusColors: Record<string, string> = {
@@ -65,9 +83,7 @@ export default async function EscalationsPage() {
                 </td>
                 <td className="px-4 py-3 text-gray-700 max-w-xs">
                   <p>{esc.reason}</p>
-                  {esc.description && (
-                    <p className="text-xs text-gray-400 mt-0.5">{esc.description}</p>
-                  )}
+                  {esc.description && <p className="text-xs text-gray-400 mt-0.5">{esc.description}</p>}
                 </td>
                 <td className="px-4 py-3 text-gray-500 uppercase text-xs">{esc.source}</td>
                 <td className="px-4 py-3">
@@ -82,9 +98,7 @@ export default async function EscalationsPage() {
             ))}
             {escalations.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                  Eskalatsiyalar yo'q
-                </td>
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-400">Eskalatsiyalar yo'q</td>
               </tr>
             )}
           </tbody>

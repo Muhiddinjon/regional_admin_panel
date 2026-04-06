@@ -1,5 +1,5 @@
 import prodPool from '@/lib/prod-db'
-import supabase from '@/lib/supabase-db'
+import { redis, K } from '@/lib/redis'
 import { REGIONS, DEFAULT_REGION } from '@/lib/elite-config'
 
 const allEliteTotal = Object.values(REGIONS).reduce((sum, r) => sum + r.driver_ids.length, 0)
@@ -52,20 +52,21 @@ async function getKPIs() {
       [subRegionIds, today]
     ),
 
-    // Shu oy CC jami murojaatlar
+    // Shu oy CC jami murojaatlar (Redis)
     (async () => {
       const now = new Date()
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
-      const { data } = await supabase
-        .from('cc_logs')
-        .select('total_incoming, escalated_to_rm, escalated_to_pm')
-        .gte('date', monthStart)
-      const rows = data ?? []
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+      const monthEnd = Date.now()
+      const dates = await redis.zrange(K.CC_LOGS, monthStart, monthEnd, { byScore: true }) as string[]
+      const logs = dates.length > 0
+        ? await Promise.all(dates.map(d => redis.hgetall(K.CC_LOG(d))))
+        : []
+      const rows = logs.filter(Boolean)
       return {
         rows: [{
-          total: String(rows.reduce((s, r) => s + (Number(r.total_incoming) || 0), 0)),
-          to_rm: String(rows.reduce((s, r) => s + (Number(r.escalated_to_rm) || 0), 0)),
-          to_pm: String(rows.reduce((s, r) => s + (Number(r.escalated_to_pm) || 0), 0)),
+          total: String(rows.reduce((s, r) => s + (Number(r!.total_incoming) || 0), 0)),
+          to_rm: String(rows.reduce((s, r) => s + (Number(r!.escalated_to_rm) || 0), 0)),
+          to_pm: String(rows.reduce((s, r) => s + (Number(r!.escalated_to_pm) || 0), 0)),
         }]
       }
     })(),

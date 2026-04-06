@@ -1,25 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
-import supabase from '@/lib/supabase-db'
+import { redis, K } from '@/lib/redis'
+import { v4 as uuidv4 } from 'uuid'
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
-      .from('elite_calls')
-      .select('driver_id, called_at, result')
-      .order('called_at', { ascending: false })
-
-    if (error) throw error
-
-    // DISTINCT ON driver_id — JS da deduplicate
     const callMap = new Map<string, { driver_id: string; called_at: string; result: string }>()
     const pmMap = new Map<string, { driver_id: string; called_at: string }>()
 
-    for (const row of (data ?? [])) {
-      const key = String(row.driver_id)
-      if (row.result === 'pm_escalated') {
-        if (!pmMap.has(key)) pmMap.set(key, { driver_id: key, called_at: row.called_at })
-      } else {
-        if (!callMap.has(key)) callMap.set(key, { driver_id: key, called_at: row.called_at, result: row.result })
+    // Fetch all driver IDs that have a latest call record
+    const callKeys = await redis.keys('andijon:elite_call_latest:*')
+    const pmKeys = await redis.keys('andijon:elite_pm_latest:*')
+
+    if (callKeys.length > 0) {
+      const values = await Promise.all(callKeys.map(k => redis.hgetall(k)))
+      for (const v of values) {
+        if (v && v.driver_id) {
+          callMap.set(String(v.driver_id), {
+            driver_id: String(v.driver_id),
+            called_at: String(v.called_at),
+            result: String(v.result),
+          })
+        }
+      }
+    }
+
+    if (pmKeys.length > 0) {
+      const values = await Promise.all(pmKeys.map(k => redis.hgetall(k)))
+      for (const v of values) {
+        if (v && v.driver_id) {
+          pmMap.set(String(v.driver_id), {
+            driver_id: String(v.driver_id),
+            called_at: String(v.called_at),
+          })
+        }
       }
     }
 
@@ -47,40 +60,38 @@ export async function POST(req: NextRequest) {
     }
 
     const today = new Date().toISOString().split('T')[0]
+    const id = uuidv4()
+    const now = new Date().toISOString()
 
-    const { data, error } = await supabase
-      .from('elite_calls')
-      .insert({ driver_id, result, note: note || null, called_at: today })
-      .select('id, called_at')
-      .single()
+    const callData = { id, driver_id: String(driver_id), result, note: note || '', called_at: today, created_at: now }
 
-    if (error) throw error
+    await Promise.all([
+      redis.hset(K.ELITE_CALL(id), callData),
+      redis.zadd(K.ELITE_CALLS, { score: Date.now(), member: id }),
+      result === 'pm_escalated'
+        ? redis.hset(K.ELITE_PM_LATEST(String(driver_id)), { driver_id: String(driver_id), called_at: today })
+        : redis.hset(K.ELITE_CALL_LATEST(String(driver_id)), { driver_id: String(driver_id), called_at: today, result }),
+    ])
 
-    // Call bo'lsa — cc_logs outgoing_inactive ni +1 qilamiz
+    // cc_logs outgoing ni yangilash
     if (result !== 'pm_escalated') {
       const responded = result === 'answered' ? 1 : 0
+      const existing = await redis.hgetall(K.CC_LOG(today))
 
-      const { data: existing } = await supabase
-        .from('cc_logs')
-        .select('outgoing_inactive, outgoing_inactive_responded')
-        .eq('date', today)
-        .single()
-
-      if (existing) {
-        await supabase.from('cc_logs').update({
-          outgoing_inactive: (existing.outgoing_inactive ?? 0) + 1,
-          outgoing_inactive_responded: (existing.outgoing_inactive_responded ?? 0) + responded,
-        }).eq('date', today)
-      } else {
-        await supabase.from('cc_logs').insert({
-          date: today,
-          outgoing_inactive: 1,
-          outgoing_inactive_responded: responded,
+      if (existing && existing.date) {
+        await redis.hset(K.CC_LOG(today), {
+          outgoing_inactive: (parseInt(String(existing.outgoing_inactive ?? '0')) + 1),
+          outgoing_inactive_responded: (parseInt(String(existing.outgoing_inactive_responded ?? '0')) + responded),
         })
+      } else {
+        await Promise.all([
+          redis.hset(K.CC_LOG(today), { date: today, outgoing_inactive: 1, outgoing_inactive_responded: responded }),
+          redis.zadd(K.CC_LOGS, { score: new Date(today).getTime(), member: today }),
+        ])
       }
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json({ id, called_at: today })
   } catch (err) {
     console.error('elite-calls POST error:', err)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
