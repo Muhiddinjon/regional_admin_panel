@@ -27,4 +27,8 @@ export const K = {
   // rm_reports
   RM_REPORTS: 'andijon:rm_reports',                              // sorted set (score=week_start timestamp)
   RM_REPORT: (id: string) => `andijon:rm_report:${id}`,          // hash
+
+  // price research (Narx O'rganish)
+  NR_DATA: (regionId: number) => `nr:${regionId}`,               // JSON string
+  NR_INDEX: 'nr:regions',                                        // sorted set (score=regionId)
 }

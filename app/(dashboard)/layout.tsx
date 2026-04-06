@@ -7,6 +7,7 @@ const navItems = [
   { href: '/elite', label: 'Elite-50', icon: '⭐' },
   { href: '/cc-log', label: 'CC Log', icon: '📞' },
   { href: '/reports', label: 'Hisobotlar', icon: '📋' },
+  { href: '/price-research', label: "Narx O'rganish", icon: '🔍' },
 ]
 
 export default async function DashboardLayout({
@@ -16,7 +17,8 @@ export default async function DashboardLayout({
 }) {
   const cookieStore = await cookies()
   const token = cookieStore.get('admin_token')?.value
-  if (!token || token !== 'authenticated') {
+  const VALID_ROLES = ['rm', 'ops', 'checker']
+  if (!token || !VALID_ROLES.includes(token)) {
     redirect('/login')
   }
 
