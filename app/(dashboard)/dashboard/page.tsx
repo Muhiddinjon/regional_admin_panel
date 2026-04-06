@@ -1,5 +1,5 @@
 import prodPool from '@/lib/prod-db'
-import localPool from '@/lib/db'
+import supabase from '@/lib/supabase-db'
 import { REGIONS, DEFAULT_REGION } from '@/lib/elite-config'
 
 const allEliteTotal = Object.values(REGIONS).reduce((sum, r) => sum + r.driver_ids.length, 0)
@@ -53,14 +53,22 @@ async function getKPIs() {
     ),
 
     // Shu oy CC jami murojaatlar
-    localPool.query<{ total: string; to_rm: string; to_pm: string }>(
-      `SELECT
-         COALESCE(SUM(total_incoming), 0) AS total,
-         COALESCE(SUM(escalated_to_rm), 0) AS to_rm,
-         COALESCE(SUM(escalated_to_pm), 0) AS to_pm
-       FROM cc_logs
-       WHERE date >= DATE_TRUNC('month', CURRENT_DATE)`
-    ),
+    (async () => {
+      const now = new Date()
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+      const { data } = await supabase
+        .from('cc_logs')
+        .select('total_incoming, escalated_to_rm, escalated_to_pm')
+        .gte('date', monthStart)
+      const rows = data ?? []
+      return {
+        rows: [{
+          total: String(rows.reduce((s, r) => s + (Number(r.total_incoming) || 0), 0)),
+          to_rm: String(rows.reduce((s, r) => s + (Number(r.escalated_to_rm) || 0), 0)),
+          to_pm: String(rows.reduce((s, r) => s + (Number(r.escalated_to_pm) || 0), 0)),
+        }]
+      }
+    })(),
   ])
 
   const cc = ccLogRes.rows[0]

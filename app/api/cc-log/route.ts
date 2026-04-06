@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import localPool from '@/lib/db'
+import supabase from '@/lib/supabase-db'
 
 export async function GET() {
   try {
-    const res = await localPool.query(`
-      SELECT * FROM cc_logs ORDER BY date DESC LIMIT 60
-    `)
-    return NextResponse.json(res.rows)
+    const { data, error } = await supabase
+      .from('cc_logs')
+      .select('*')
+      .order('date', { ascending: false })
+      .limit(60)
+
+    if (error) throw error
+    return NextResponse.json(data)
   } catch (err) {
     console.error('CC log GET error:', err)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
@@ -36,24 +40,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'date va cc_name majburiy' }, { status: 400 })
     }
 
-    const res = await localPool.query(
-      `INSERT INTO cc_logs (
-        date, cc_name,
-        total_incoming, client_calls, regular_driver_calls, elite_driver_calls,
-        resolved_by_cc, escalated_to_rm, escalated_to_pm,
-        outgoing_inactive, outgoing_inactive_responded, outgoing_onboarding,
-        notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-      RETURNING *`,
-      [
+    const { data, error } = await supabase
+      .from('cc_logs')
+      .insert({
         date, cc_name,
         total_incoming, client_calls, regular_driver_calls, elite_driver_calls,
         resolved_by_cc, escalated_to_rm, escalated_to_pm,
         outgoing_inactive, outgoing_inactive_responded, outgoing_onboarding,
         notes,
-      ]
-    )
-    return NextResponse.json(res.rows[0], { status: 201 })
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return NextResponse.json(data, { status: 201 })
   } catch (err) {
     console.error('CC log POST error:', err)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })

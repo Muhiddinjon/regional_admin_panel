@@ -1,16 +1,18 @@
-import pool from '@/lib/db'
+import supabase from '@/lib/supabase-db'
 import { formatDate } from '@/lib/utils'
 import ResolveButton from './ResolveButton'
 
 async function getEscalations() {
-  const { rows } = await pool.query(`
-    SELECT e.*, d.name as driver_name, d.phone as driver_phone
-    FROM escalations e
-    LEFT JOIN drivers d ON d.id = e.driver_id
-    ORDER BY e.date DESC
-    LIMIT 100
-  `)
-  return rows
+  const { data } = await supabase
+    .from('escalations')
+    .select('*, drivers(name, phone)')
+    .order('created_at', { ascending: false })
+    .limit(100)
+  return (data ?? []).map((e) => ({
+    ...e,
+    driver_name: (e.drivers as { name: string } | null)?.name ?? null,
+    driver_phone: (e.drivers as { phone: string } | null)?.phone ?? null,
+  }))
 }
 
 const statusColors: Record<string, string> = {

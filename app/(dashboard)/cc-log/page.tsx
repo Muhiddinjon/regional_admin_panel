@@ -1,11 +1,13 @@
-import localPool from '@/lib/db'
+import supabase from '@/lib/supabase-db'
 import Link from 'next/link'
 
 async function getCCLogs() {
-  const { rows } = await localPool.query(`
-    SELECT * FROM cc_logs ORDER BY date DESC LIMIT 60
-  `)
-  return rows
+  const { data } = await supabase
+    .from('cc_logs')
+    .select('*')
+    .order('date', { ascending: false })
+    .limit(60)
+  return data ?? []
 }
 
 function fmt(n: number | null) {

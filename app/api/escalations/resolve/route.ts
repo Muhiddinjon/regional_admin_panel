@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
-import pool from '@/lib/db'
+import supabase from '@/lib/supabase-db'
 
 export async function POST(request: Request) {
   const { id } = await request.json()
-  await pool.query(
-    `UPDATE escalations SET status = 'resolved', resolved_at = NOW() WHERE id = $1`,
-    [id]
-  )
+  const { error } = await supabase
+    .from('escalations')
+    .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

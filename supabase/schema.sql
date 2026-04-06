@@ -97,6 +97,14 @@ create table if not exists rm_reports (
   unique(week_start)
 );
 
+-- RLS o'chirish (admin panel — xavfsiz)
+alter table cc_logs disable row level security;
+alter table escalations disable row level security;
+alter table prices disable row level security;
+alter table rm_reports disable row level security;
+alter table drivers disable row level security;
+alter table driver_metrics disable row level security;
+
 -- Elite driver calls tracking
 create table if not exists elite_calls (
   id uuid primary key default gen_random_uuid(),
@@ -108,6 +116,7 @@ create table if not exists elite_calls (
   created_at timestamptz default now()
 );
 create index if not exists elite_calls_driver_id_idx on elite_calls(driver_id);
+alter table elite_calls disable row level security;
 
 -- =============================================
 -- Seed: Andijon subregion narxlari
