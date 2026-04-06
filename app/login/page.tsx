@@ -21,8 +21,7 @@ export default function LoginPage() {
     })
 
     if (res.ok) {
-      router.push('/')
-      router.refresh()
+      window.location.href = '/'
     } else {
       setError('Noto\'g\'ri parol')
     }
