@@ -22,12 +22,12 @@ export async function GET(req: NextRequest) {
     const typeParam = all ? '$2' : '$3'
     const regionFilter = all ? '' : 'AND br.departure_region_id = $1'
 
-    // 1. Seat pricings (with br.active for tariff-level status)
+    // 1. Seat pricings
     const seatsRes = await client.query<{
       departure_region_id: number; tariff_id: string | null
-      seat_variant_id: string; min_price: number; available: boolean; active: boolean
+      seat_variant_id: string; min_price: number; available: boolean
     }>(`
-      SELECT br.departure_region_id, br.tariff_id, br.active,
+      SELECT br.departure_region_id, br.tariff_id,
         sp.seat_variant_id, sp.min_price::int, sp.available
       FROM base_routes br
       JOIN seat_pricings sp ON sp.base_route_id = br.id AND sp.deleted_at IS NULL
@@ -42,10 +42,10 @@ export async function GET(req: NextRequest) {
 
     // 2. Sub-region additional prices (all tariffs, including delivery)
     const subsRes = await client.query<{
-      departure_region_id: number; tariff_id: string | null; active: boolean
+      departure_region_id: number; tariff_id: string | null
       attribute_id: string; name: string; region_id: string; price: number; status: boolean
     }>(`
-      SELECT br.departure_region_id, br.tariff_id, br.active, bra.attribute_id,
+      SELECT br.departure_region_id, br.tariff_id, bra.attribute_id,
         COALESCE(sr.name->>'uz', sr.name->>'en') AS name,
         sr.region_id, bra.price::int, bra.status
       FROM base_route_attributes bra
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
       const tid = r.tariff_id ?? 'delivery'
       if (!routesMap[rid].seats[tid]) routesMap[rid].seats[tid] = []
       if (!(tid in routesMap[rid].tariff_active)) {
-        routesMap[rid].tariff_active[tid] = Boolean(r.active)
+        routesMap[rid].tariff_active[tid] = true
       }
       routesMap[rid].seats[tid].push({
         variant: Number(r.seat_variant_id),
@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
       if (!routesMap[rid].departure_subs[tid]) routesMap[rid].departure_subs[tid] = []
       // Also populate tariff_active for delivery (not in seatsRes)
       if (!(tid in routesMap[rid].tariff_active)) {
-        routesMap[rid].tariff_active[tid] = Boolean(r.active)
+        routesMap[rid].tariff_active[tid] = true
       }
       // Full price = base (variant-1 seat price for this tariff) + bra.price delta
       const base = routesMap[rid].seats[tid]?.find(s => s.variant === 1)?.price ?? 0

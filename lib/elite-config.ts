@@ -1,78 +1,17 @@
 export const REGIONS: Record<number, {
   name: string
   sub_region_ids: number[]
-  // Canonical customer IDs — stable, phone raqamlar o'zgarsa ham ID o'zgarmaydi
-  driver_ids: number[]
-  // Phone raqamlar — yangi driver qo'shish yoki ID yangilash uchun reference
-  phones: string[]
 }> = {
   3: {
     name: 'Andijon',
     sub_region_ids: [34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49],
-    driver_ids: [
-      159481, // Rustam Mamatayev         +998335050513
-      200238, // Muslimbek Xakimov        +998336251313
-      231601, // Рустем Ixosov            +998507551188
-      375877, // Doniyorbek G'anijonov    +998880101334
-      329919, // Xayotbek Abdusalomov     +998882881777
-      351147, // БЕКЗОД Turayev           +998884733131
-      185509, // Maxkamboy Nasriddinov    +998885440100
-      324789, // Otabek Xakulov           +998887459900
-      380076, // Мусурмонкул Ergashev     +998888360297
-      377087, // Азмидин Xoliqov          +998888750422
-      416359, // Шухратбек Yusvaliyev     +998889991222
-      302906, // Жасурбек Mansurov        +998889998800
-      572206, // Мухамадали Qo'chqarov    +998900603676
-      503515, // Ismoil Voxobov           +998902052025
-      327964, // Shuhrat O'tanov          +998905451004
-      301554, // Azizbek Unarzakov        +998905487070
-      218062, // Илхомжон Sohibov         +998907700120
-      351674, // Azizbek Muzaffarov       +998907727210
-      186431, // АКРАМЖОН Mamadaliyev     +998908091370
-      353539, // Shuratbek Abdug'aniyev   +998911741004
-      231323, // Rozimuhhamad Sotvoldiyev +998914793162
-      331688, // Samadjon Turaboyev       +998914828878
-      335837, // SHOHRUHBEK Umurzakov     +998930610505
-      445935, // HALILULLOH Xabibullayev  +998930672525
-      337995, // Шерзодбек Raximov        +998935450027
-      344533, // Абдувахоб Abduraxmonov   +998937222288
-      250104, // Durbek Mamatqulov        +998937836717
-      637878, // Furqat Buronov           +998939903388
-      204806, // АБДУХАЛИЛ Xusanboyev     +998940700501
-      202829, // Муслимбек Jo'rayev       +998940979424
-      229311, // Dostonbek Axmedov        +998941062592
-      328990, // Jamolddin Azimov         +998941101550
-      346183, // Hursanbek Axmedov        +998944366125
-      364441, // Murodullo Mamadaliyev    +998950182500
-      262979, // Хасанбой Икромов         +998950603100
-      235994, // Rustambek Qodirov        +998950930903
-      590772, // Акмалжон Kimsanov        +998951280092
-      210007, // Мирзохиджон Gulamov      +998951610774
-      410344, // Dilshodbek O'rinboyev    +998954611515
-      248476, // Ойбек Maksudov           +998971136600
-      655142, // ZAFAR Ruzimatov          +998973381331
-      228974, // Husniddin Rejavaliyev    +998978387810
-      331660, // Faryozbek Kirgizov       +998979907447
-      369566, // Oйбек Холматов           +998990231362
-      742481, // Омадилло Нурдинов        +998992515551
-      312228, // Kamoliddin Karimov       +998996337573
-      574536, // Шерзодбек Yunusov        +998996763999
-      608678, // Ismoil Sodikov           +998999007921
-      411811, // Азизбек Axmadaliyev      +998999099914
-    ],
-    phones: [
-      '+998930610505', '+998907727210', '+998951610774', '+998996763999', '+998979907447',
-      '+998336251313', '+998889998800', '+998992515551', '+998905451004', '+998885440100',
-      '+998907700120', '+998973381331', '+998935450027', '+998999007921', '+998888360297',
-      '+998911741004', '+998950603100', '+998990231362', '+998941062592', '+998951280092',
-      '+998940700501', '+998884733131', '+998914793162', '+998888750422', '+998930672525',
-      '+998950182500', '+998941101550', '+998940979424', '+998889991222', '+998937836717',
-      '+998944366125', '+998335050513', '+998887459900', '+998507551188', '+998900603676',
-      '+998939903388', '+998971136600', '+998937222288', '+998954611515', '+998950930903',
-      '+998905487070', '+998880101334', '+998902052025', '+998882881777', '+998999099914',
-      '+998996337573', '+998908091370', '+998914828878', '+998978387810',
-    ],
   },
 }
 
 export const DEFAULT_REGION = 3
+
+// Andijon shahar sub_region_id = 39 (Andijon City)
+export const ANDIJON_CITY_SUB_IDS: number[] = [39]
+
+// April 2026 maqsad
+export const ANDIJON_CITY_GOAL = 1200

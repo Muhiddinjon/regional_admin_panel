@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prodPool from '@/lib/prod-db'
 import { REGIONS } from '@/lib/elite-config'
+import { redis, K } from '@/lib/redis'
 
 export async function GET(
   _req: NextRequest,
@@ -10,7 +11,8 @@ export async function GET(
   const region = REGIONS[Number(regionId)]
   if (!region) return NextResponse.json({ error: 'Region not found' }, { status: 404 })
 
-  const driverIds = region.driver_ids
+  const ids = await redis.smembers(K.ELITE_DRIVERS)
+  const driverIds = ids.map(Number)
   const eliteTotal = driverIds.length
 
   try {

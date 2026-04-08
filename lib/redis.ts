@@ -31,4 +31,8 @@ export const K = {
   // price research (Narx O'rganish)
   NR_DATA: (regionId: number) => `nr:${regionId}`,               // JSON string
   NR_INDEX: 'nr:regions',                                        // sorted set (score=regionId)
+
+  // elite drivers
+  ELITE_DRIVERS: 'elite:drivers',                                // set of driver IDs
+  ELITE_DRIVER: (id: string) => `elite:driver:${id}`,            // hash
 }

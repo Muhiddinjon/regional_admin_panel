@@ -72,9 +72,10 @@ const SEAT_NAMES: Record<number, string> = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function PriceResearchClient({ role }: { role: 'rm' | 'ops' | 'checker' }) {
-  const canEdit = role === 'rm' || role === 'ops'
-  const canConfirm = role === 'ops'
+export default function PriceResearchClient({ role }: { role: 'rm' | 'ops' | 'pm' | 'checker' }) {
+  const canEdit = role === 'rm' || role === 'ops' || role === 'pm'
+  const canConfirm = role === 'ops' || role === 'pm'
+  const canMarkEntered = role === 'pm'
 
   const [allRoutes, setAllRoutes] = useState<Record<string, DBRoute>>({})
   const [selectedRegion, setSelectedRegion] = useState<string>('')
@@ -310,12 +311,36 @@ export default function PriceResearchClient({ role }: { role: 'rm' | 'ops' | 'ch
   const statusCls = { draft: 'text-gray-500', confirmed: 'text-green-600 font-medium', entered: 'text-blue-600 font-medium' }
   const roleBadge = {
     rm:      { label: 'RM',          cls: 'bg-blue-100 text-blue-700' },
-    ops:     { label: 'Ops Manager', cls: 'bg-purple-100 text-purple-700' },
+    ops:     { label: 'Ops',         cls: 'bg-orange-100 text-orange-700' },
+    pm:      { label: 'PM',          cls: 'bg-purple-100 text-purple-700' },
     checker: { label: 'Checker',     cls: 'bg-gray-100 text-gray-600' },
   }
 
+  const regionStatusIcon = (status?: string) => {
+    if (!status) return '🔴'
+    if (status === 'draft') return '🟡'
+    if (status === 'confirmed') return '🟠'
+    if (status === 'entered') return '✅'
+    return '🔴'
+  }
+
+  const noDataCount = Object.keys(allRoutes).length - progress.length
+  const draftCount = progress.filter(p => p.status === 'draft').length
+  const confirmedCount = progress.filter(p => p.status === 'confirmed').length
+  const enteredCount = progress.filter(p => p.status === 'entered').length
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
+      {/* Summary banner (rm and pm only) */}
+      {(role === 'rm' || role === 'ops' || role === 'pm') && Object.keys(allRoutes).length > 0 && (
+        <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-xl px-4 py-3 mb-4 text-sm flex-wrap">
+          {noDataCount > 0 && <span className="flex items-center gap-1">🔴 <span className="text-gray-700">{noDataCount} ta o&apos;rganilmagan</span></span>}
+          {draftCount > 0 && <span className="flex items-center gap-1">🟡 <span className="text-gray-700">{draftCount} ta tasdiqlash kutmoqda</span></span>}
+          {confirmedCount > 0 && <span className="flex items-center gap-1">🟠 <span className="text-gray-700">{confirmedCount} ta kiritilmagan</span></span>}
+          {enteredCount > 0 && <span className="flex items-center gap-1">✅ <span className="text-gray-700">{enteredCount} ta kiritildi</span></span>}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -354,10 +379,10 @@ export default function PriceResearchClient({ role }: { role: 'rm' | 'ops' | 'ch
               <option value="">— Region tanlang —</option>
               {regionList.map(r => {
                 const p = progress.find(pp => pp.region_id === r.from_region_id)
-                const badge = p?.status === 'entered' ? ' ✓✓' : p?.status === 'confirmed' ? ' ✓' : ''
+                const icon = regionStatusIcon(p?.status)
                 return (
                   <option key={r.from_region_id} value={String(r.from_region_id)}>
-                    {r.from_region_name}{badge}
+                    {icon} {r.from_region_name}
                   </option>
                 )
               })}
@@ -597,22 +622,22 @@ export default function PriceResearchClient({ role }: { role: 'rm' | 'ops' | 'ch
             </button>
           )}
           {canConfirm && (
-            <>
-              <button
-                onClick={() => handleStatus('confirmed')}
-                disabled={saving || status === 'confirmed' || status === 'entered'}
-                className="px-5 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                ✓ Tasdiqlash
-              </button>
-              <button
-                onClick={() => handleStatus('entered')}
-                disabled={saving || status === 'entered'}
-                className="px-5 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                ✓✓ Kiritib bo&apos;lindi
-              </button>
-            </>
+            <button
+              onClick={() => handleStatus('confirmed')}
+              disabled={saving || status === 'confirmed' || status === 'entered'}
+              className="px-5 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              ✓ Tasdiqlash
+            </button>
+          )}
+          {canMarkEntered && (
+            <button
+              onClick={() => handleStatus('entered')}
+              disabled={saving || status === 'entered'}
+              className="px-5 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              ✓✓ Kiritib bo&apos;lindi
+            </button>
           )}
           <span className={`ml-auto text-sm ${statusCls[status]}`}>{statusLabel[status]}</span>
         </div>

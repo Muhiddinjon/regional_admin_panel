@@ -7,6 +7,7 @@ export async function POST(request: NextRequest) {
   let role: string | null = null
   if (password === process.env.RM_PASSWORD)           role = 'rm'
   else if (password === process.env.OPS_PASSWORD)     role = 'ops'
+  else if (password === process.env.PM_PASSWORD)      role = 'pm'
   else if (password === process.env.CHECKER_PASSWORD) role = 'checker'
 
   if (!role) {

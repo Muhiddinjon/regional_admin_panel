@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/elite', label: 'Elite-50', icon: '⭐' },
+  { href: '/elite/analysis', label: 'Kandidatlar', icon: '🎯' },
   { href: '/cc-log', label: 'CC Log', icon: '📞' },
   { href: '/reports', label: 'Hisobotlar', icon: '📋' },
   { href: '/price-research', label: "Narx O'rganish", icon: '🔍' },
