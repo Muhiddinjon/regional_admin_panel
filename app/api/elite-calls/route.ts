@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 export async function GET() {
   try {
-    const callMap = new Map<string, { driver_id: string; called_at: string; result: string }>()
+    const callMap = new Map<string, { driver_id: string; called_at: string; result: string; note: string }>()
     const pmMap = new Map<string, { driver_id: string; called_at: string }>()
 
     // Fetch all driver IDs that have a latest call record
@@ -19,6 +19,7 @@ export async function GET() {
             driver_id: String(v.driver_id),
             called_at: String(v.called_at),
             result: String(v.result),
+            note: String(v.note || ''),
           })
         }
       }
@@ -42,6 +43,32 @@ export async function GET() {
     })
   } catch (err) {
     console.error('elite-calls GET error:', err)
+    return NextResponse.json({ error: 'Database error' }, { status: 500 })
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { driver_id, result, note } = await req.json()
+    if (!driver_id || !result) {
+      return NextResponse.json({ error: 'driver_id va result majburiy' }, { status: 400 })
+    }
+    const valid = ['answered', 'no_answer', 'callback']
+    if (!valid.includes(result)) {
+      return NextResponse.json({ error: "Noto'g'ri result" }, { status: 400 })
+    }
+    const today = new Date().toISOString().split('T')[0]
+    const id = uuidv4()
+    const now = new Date().toISOString()
+    const callData = { id, driver_id: String(driver_id), result, note: note || '', called_at: today, created_at: now }
+    await Promise.all([
+      redis.hset(K.ELITE_CALL(id), callData),
+      redis.zadd(K.ELITE_CALLS, { score: Date.now(), member: id }),
+      redis.hset(K.ELITE_CALL_LATEST(String(driver_id)), { driver_id: String(driver_id), called_at: today, result, note: note || '' }),
+    ])
+    return NextResponse.json({ id, called_at: today })
+  } catch (err) {
+    console.error('elite-calls PATCH error:', err)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }
 }
@@ -70,7 +97,7 @@ export async function POST(req: NextRequest) {
       redis.zadd(K.ELITE_CALLS, { score: Date.now(), member: id }),
       result === 'pm_escalated'
         ? redis.hset(K.ELITE_PM_LATEST(String(driver_id)), { driver_id: String(driver_id), called_at: today })
-        : redis.hset(K.ELITE_CALL_LATEST(String(driver_id)), { driver_id: String(driver_id), called_at: today, result }),
+        : redis.hset(K.ELITE_CALL_LATEST(String(driver_id)), { driver_id: String(driver_id), called_at: today, result, note: note || '' }),
     ])
 
     // cc_logs outgoing ni yangilash
@@ -94,6 +121,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id, called_at: today })
   } catch (err) {
     console.error('elite-calls POST error:', err)
+    return NextResponse.json({ error: 'Database error' }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { driver_id } = await req.json()
+    if (!driver_id) return NextResponse.json({ error: 'driver_id required' }, { status: 400 })
+    await redis.del(K.ELITE_PM_LATEST(String(driver_id)))
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('elite-calls DELETE error:', err)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import DateRangePicker from '@/components/DateRangePicker'
 
 type ReportData = {
   date_from: string
@@ -11,7 +12,11 @@ type ReportData = {
   regular_done: number
   elite_share: number
   total_rejected: number
+  elite_rejected: number
+  regular_rejected: number
   reject_rate: number
+  elite_reject_rate: number
+  regular_reject_rate: number
   active_drivers: number
   elite_active: number
   elite_total: number
@@ -115,46 +120,30 @@ export default function ReportsPage() {
 
       {/* Date picker */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-        <div className="flex flex-wrap items-center gap-2">
-          {presets.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => applyPreset(p.key)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                preset === p.key
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {presets.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => applyPreset(p.key)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                  preset === p.key
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
 
           {preset === 'custom' && (
-            <div className="flex items-center gap-2 ml-2">
-              <input
-                type="date"
-                value={dateFrom}
-                max={dateTo}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <span className="text-gray-400 text-sm">—</span>
-              <input
-                type="date"
-                value={dateTo}
-                min={dateFrom}
-                max={today}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={handleCustomApply}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-              >
-                Ko'rsatish
-              </button>
-            </div>
+            <DateRangePicker
+              startDate={dateFrom}
+              endDate={dateTo}
+              onStartDateChange={(d) => setDateFrom(d)}
+              onEndDateChange={(d) => { setDateTo(d); if (d) fetchReport(dateFrom, d) }}
+            />
           )}
         </div>
 
@@ -175,32 +164,48 @@ export default function ReportsPage() {
 
       {!loading && data && (
         <>
-          {/* KPI cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500">Jami done (Andijon)</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{data.total_done.toLocaleString()}</p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500">Elite done</p>
-              <p className="text-2xl font-bold text-blue-700 mt-1">
-                {data.elite_done.toLocaleString()}
-                <span className="text-sm font-normal text-gray-400 ml-1">({data.elite_share}%)</span>
-              </p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500">Oddiy driver done</p>
-              <p className="text-2xl font-bold text-gray-700 mt-1">{data.regular_done.toLocaleString()}</p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500">Reject rate</p>
-              <p className={`text-2xl font-bold mt-1 ${data.reject_rate >= 25 ? 'text-red-600' : 'text-gray-900'}`}>
-                {data.reject_rate}%
-              </p>
-            </div>
+          {/* Done / Rejected jadval */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 w-24"></th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Done</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Rejected</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">Reject %</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                <tr>
+                  <td className="px-4 py-3 text-xs font-medium text-gray-600">Jami</td>
+                  <td className="px-4 py-3 text-right font-bold text-gray-900">{data.total_done.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-red-500">{data.total_rejected.toLocaleString()}</td>
+                  <td className={`px-4 py-3 text-right font-semibold ${data.reject_rate >= 25 ? 'text-red-600' : 'text-gray-700'}`}>
+                    {data.reject_rate}%
+                  </td>
+                </tr>
+                <tr className="bg-blue-50/40">
+                  <td className="px-4 py-3 text-xs font-medium text-blue-700">Elite</td>
+                  <td className="px-4 py-3 text-right font-semibold text-blue-700">{data.elite_done.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-red-400">{data.elite_rejected.toLocaleString()}</td>
+                  <td className={`px-4 py-3 text-right font-semibold ${data.elite_reject_rate >= 25 ? 'text-red-600' : 'text-gray-600'}`}>
+                    {data.elite_reject_rate}%
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-3 text-xs font-medium text-gray-500">Oddiy</td>
+                  <td className="px-4 py-3 text-right font-semibold text-gray-700">{data.regular_done.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-red-300">{data.regular_rejected.toLocaleString()}</td>
+                  <td className={`px-4 py-3 text-right font-semibold ${data.regular_reject_rate >= 25 ? 'text-red-600' : 'text-gray-500'}`}>
+                    {data.regular_reject_rate}%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Driver coverage */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-xs text-gray-500">Faol driverlar (jami)</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">{data.active_drivers.toLocaleString()}</p>
@@ -213,16 +218,9 @@ export default function ReportsPage() {
               </p>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500">Jami rejected</p>
-              <p className="text-2xl font-bold text-gray-700 mt-1">{data.total_rejected.toLocaleString()}</p>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-xs text-gray-500">Elite ulushi</p>
               <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full"
-                  style={{ width: `${data.elite_share}%` }}
-                />
+                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${data.elite_share}%` }} />
               </div>
               <p className="text-xs text-gray-500 mt-1">{data.elite_share}% Elite · {100 - data.elite_share}% Oddiy</p>
             </div>

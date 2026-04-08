@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prodPool from '@/lib/prod-db'
 import { REGIONS } from '@/lib/elite-config'
+import { redis, K } from '@/lib/redis'
 
 export async function GET(
   req: NextRequest,
@@ -12,7 +13,8 @@ export async function GET(
 
   const { searchParams } = req.nextUrl
   const subRegionIds = region.sub_region_ids
-  const eliteIds = region.driver_ids
+  const ids = await redis.smembers(K.ELITE_DRIVERS)
+  const eliteIds = ids.map(Number)
   const eliteTotal = eliteIds.length
 
   let dateFrom = searchParams.get('date_from')
@@ -36,15 +38,40 @@ export async function GET(
       total_done: string
       elite_done: string
       total_rejected: string
+      elite_rejected: string
       active_drivers: string
       elite_active: string
+      net_total_rejected: string
+      net_elite_rejected: string
     }>(`
       SELECT
         COUNT(*) FILTER (WHERE status != 'rejected') AS total_done,
         COUNT(*) FILTER (WHERE status != 'rejected' AND driver_id = ANY($3)) AS elite_done,
         COUNT(*) FILTER (WHERE status = 'rejected') AS total_rejected,
+        COUNT(*) FILTER (WHERE status = 'rejected' AND driver_id = ANY($3)) AS elite_rejected,
         COUNT(DISTINCT driver_id) FILTER (WHERE status != 'rejected') AS active_drivers,
-        COUNT(DISTINCT driver_id) FILTER (WHERE status != 'rejected' AND driver_id = ANY($3)) AS elite_active
+        COUNT(DISTINCT driver_id) FILTER (WHERE status != 'rejected' AND driver_id = ANY($3)) AS elite_active,
+        COUNT(*) FILTER (
+          WHERE status = 'rejected'
+          AND NOT EXISTS (
+            SELECT 1 FROM orders o2
+            WHERE o2.customer_id = orders.customer_id
+              AND o2.status != 'rejected'
+              AND (o2.departure_sub_region_id = ANY($1) OR o2.arrival_sub_region_id = ANY($1))
+              AND (o2.created_at + INTERVAL '5 hours')::date BETWEEN $2::date AND $4::date
+          )
+        ) AS net_total_rejected,
+        COUNT(*) FILTER (
+          WHERE status = 'rejected'
+            AND driver_id = ANY($3)
+            AND NOT EXISTS (
+              SELECT 1 FROM orders o2
+              WHERE o2.customer_id = orders.customer_id
+                AND o2.status != 'rejected'
+                AND (o2.departure_sub_region_id = ANY($1) OR o2.arrival_sub_region_id = ANY($1))
+                AND (o2.created_at + INTERVAL '5 hours')::date BETWEEN $2::date AND $4::date
+            )
+        ) AS net_elite_rejected
       FROM orders
       WHERE (departure_sub_region_id = ANY($1) OR arrival_sub_region_id = ANY($1))
         AND (created_at + INTERVAL '5 hours')::date BETWEEN $2::date AND $4::date
@@ -53,8 +80,11 @@ export async function GET(
     const s = statsRes.rows[0]
     const totalDone = Number(s.total_done)
     const eliteDone = Number(s.elite_done)
-    const totalRejected = Number(s.total_rejected)
+    const regularDone = totalDone - eliteDone
     const eliteActive = Number(s.elite_active)
+    const netTotalRejected = Number(s.net_total_rejected)
+    const netEliteRejected = Number(s.net_elite_rejected)
+    const netRegularRejected = netTotalRejected - netEliteRejected
 
     // Daily breakdown
     const dailyRes = await prodPool.query<{
@@ -103,11 +133,19 @@ export async function GET(
       region: region.name,
       total_done: totalDone,
       elite_done: eliteDone,
-      regular_done: totalDone - eliteDone,
+      regular_done: regularDone,
       elite_share: totalDone > 0 ? Math.round((eliteDone / totalDone) * 100 * 10) / 10 : 0,
-      total_rejected: totalRejected,
-      reject_rate: totalDone + totalRejected > 0
-        ? Math.round((totalRejected / (totalDone + totalRejected)) * 100 * 10) / 10
+      total_rejected: netTotalRejected,
+      elite_rejected: netEliteRejected,
+      regular_rejected: netRegularRejected,
+      reject_rate: totalDone + netTotalRejected > 0
+        ? Math.round((netTotalRejected / (totalDone + netTotalRejected)) * 100 * 10) / 10
+        : 0,
+      elite_reject_rate: eliteDone + netEliteRejected > 0
+        ? Math.round((netEliteRejected / (eliteDone + netEliteRejected)) * 100 * 10) / 10
+        : 0,
+      regular_reject_rate: regularDone + netRegularRejected > 0
+        ? Math.round((netRegularRejected / (regularDone + netRegularRejected)) * 100 * 10) / 10
         : 0,
       active_drivers: Number(s.active_drivers),
       elite_active: eliteActive,

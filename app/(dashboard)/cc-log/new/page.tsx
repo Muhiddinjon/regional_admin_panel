@@ -106,14 +106,14 @@ export default function NewCCLogPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Sana</label>
               <input type="date" value={form.date}
                 onChange={(e) => update('date', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">CC Ism</label>
               <input type="text" value={form.cc_name} placeholder="Ism Familya"
                 onChange={(e) => update('cc_name', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required />
             </div>
           </div>
@@ -131,7 +131,7 @@ export default function NewCCLogPage() {
                     type="number" min="0"
                     value={form[f.key as keyof typeof form]}
                     onChange={(e) => update(f.key, e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0"
                   />
                 </div>
@@ -145,7 +145,7 @@ export default function NewCCLogPage() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Izoh</label>
           <textarea value={form.notes} onChange={(e) => update('notes', e.target.value)}
             rows={3} placeholder="Qo'shimcha izohlar..."
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
 
         <div className="flex justify-end gap-3">

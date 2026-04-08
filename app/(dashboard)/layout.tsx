@@ -17,7 +17,7 @@ export default async function DashboardLayout({
 }) {
   const cookieStore = await cookies()
   const token = cookieStore.get('admin_token')?.value
-  const VALID_ROLES = ['rm', 'ops', 'checker']
+  const VALID_ROLES = ['rm', 'ops', 'pm', 'checker']
   if (!token || !VALID_ROLES.includes(token)) {
     redirect('/login')
   }
@@ -43,6 +43,7 @@ export default async function DashboardLayout({
           ))}
         </nav>
         <div className="px-4 py-3 border-t border-gray-100">
+          <p className="text-xs text-gray-400 mb-2">Rol: <span className="font-medium text-gray-600">{token}</span></p>
           <form action="/api/auth/logout" method="POST">
             <button
               formAction="/api/auth/logout"
