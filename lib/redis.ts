@@ -35,4 +35,7 @@ export const K = {
   // elite drivers
   ELITE_DRIVERS: 'elite:drivers',                                // set of driver IDs
   ELITE_DRIVER: (id: string) => `elite:driver:${id}`,            // hash
+
+  // ignored candidates (offered but never responded)
+  ELITE_IGNORED: 'elite:ignored',                                // set of driver IDs
 }

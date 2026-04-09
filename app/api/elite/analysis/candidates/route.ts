@@ -8,8 +8,12 @@ export async function GET(req: NextRequest) {
   const subRegionId = Number(searchParams.get('sub_region_id'))
   if (!subRegionId) return NextResponse.json({ error: 'sub_region_id required' }, { status: 400 })
 
-  const ids = await redis.smembers(K.ELITE_DRIVERS)
+  const [ids, ignoredIds] = await Promise.all([
+    redis.smembers(K.ELITE_DRIVERS),
+    redis.smembers(K.ELITE_IGNORED),
+  ])
   const eliteIds = ids.map(Number)
+  const ignoredSet = new Set(ignoredIds.map(Number))
 
   try {
     const res = await prodPool.query<{
@@ -47,7 +51,7 @@ export async function GET(req: NextRequest) {
         AND c.id != ALL($2)
       GROUP BY c.id, c.first_name, c.last_name, c.phone_number, c.rating, c.activity_score, c.points
       ORDER BY done_month DESC, total_done DESC
-      LIMIT 30
+      LIMIT 50
     `, [subRegionId, eliteIds.length > 0 ? eliteIds : [0]])
 
     return NextResponse.json(res.rows.map(r => ({
@@ -59,6 +63,7 @@ export async function GET(req: NextRequest) {
       points: r.points ? Number(r.points) : null,
       done_month: Number(r.done_month),
       total_done: Number(r.total_done),
+      ignored: ignoredSet.has(r.id),
     })))
   } catch (err) {
     console.error('elite/analysis/candidates GET error:', err)

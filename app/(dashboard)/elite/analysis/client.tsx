@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Fragment } from 'react'
 import DateRangePicker from '@/components/DateRangePicker'
 
 function getTashkentToday(): string {
@@ -40,6 +40,7 @@ interface Candidate {
   points: number | null
   done_month: number
   total_done: number
+  ignored: boolean
 }
 
 type SortKey = 'done_month' | 'total_done' | 'rating' | 'activity_score' | 'points'
@@ -55,7 +56,6 @@ export default function AnalysisClient({ role }: Props) {
   const [data, setData] = useState<SubRegionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [selectedName, setSelectedName] = useState('')
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loadingCandidates, setLoadingCandidates] = useState(false)
   const [addingId, setAddingId] = useState<number | null>(null)
@@ -65,7 +65,6 @@ export default function AnalysisClient({ role }: Props) {
   const fetchAnalysis = useCallback((from: string, to: string) => {
     setLoading(true)
     setSelectedId(null)
-    setSelectedName('')
     setCandidates([])
     fetch(`/api/elite/analysis?region_id=3&date_from=${from}&date_to=${to}`)
       .then(r => r.json())
@@ -80,12 +79,10 @@ export default function AnalysisClient({ role }: Props) {
   async function selectSubRegion(row: SubRegionRow) {
     if (selectedId === row.sub_region_id) {
       setSelectedId(null)
-      setSelectedName('')
       setCandidates([])
       return
     }
     setSelectedId(row.sub_region_id)
-    setSelectedName(row.name)
     setLoadingCandidates(true)
     setCandidates([])
     try {
@@ -120,7 +117,7 @@ export default function AnalysisClient({ role }: Props) {
     }
   }
 
-  const canAdd = ['pm', 'rm', 'ops'].includes(role)
+  const canAdd = ['pm', 'rm', 'ops', 'checker'].includes(role)
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -143,7 +140,7 @@ export default function AnalysisClient({ role }: Props) {
   }
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6">
       <div className="mb-5 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-lg font-bold text-gray-900">Sub-region tahlili — Andijon</h1>
@@ -159,8 +156,7 @@ export default function AnalysisClient({ role }: Props) {
         />
       </div>
 
-      {/* Sub-region table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
@@ -181,112 +177,116 @@ export default function AnalysisClient({ role }: Props) {
                 <td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">Ma&apos;lumot yo&apos;q</td>
               </tr>
             ) : (
-              data.map((row) => (
-                <tr
-                  key={row.sub_region_id}
-                  onClick={() => selectSubRegion(row)}
-                  className={`border-b border-gray-50 cursor-pointer transition-colors ${
-                    selectedId === row.sub_region_id ? 'bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <td className="px-4 py-3 font-medium text-gray-900">{row.name}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{fmtAvg(row.demand, calcDays(dateFrom, dateTo))}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{row.supply}</td>
-                  {(() => {
-                    const days = calcDays(dateFrom, dateTo)
-                    const gapAvg = row.demand / days - row.supply
-                    const color = gapAvg > 5 ? 'text-red-600' : gapAvg > 2 ? 'text-orange-500' : 'text-green-600'
-                    const fmt = gapAvg.toFixed(1).replace('.', ',')
-                    return (
+              data.map((row) => {
+                const days = calcDays(dateFrom, dateTo)
+                const gapAvg = row.demand / days - row.supply
+                const color = gapAvg > 5 ? 'text-red-600' : gapAvg > 2 ? 'text-orange-500' : 'text-green-600'
+                const fmt = gapAvg.toFixed(1).replace('.', ',')
+                const isOpen = selectedId === row.sub_region_id
+
+                return (
+                  <Fragment key={row.sub_region_id}>
+                    {/* Sub-region row */}
+                    <tr
+                      onClick={() => selectSubRegion(row)}
+                      className={`border-b border-gray-100 cursor-pointer transition-colors ${
+                        isOpen ? 'bg-blue-50' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-medium text-gray-900">{row.name}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{fmtAvg(row.demand, days)}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{row.supply}</td>
                       <td className={`px-4 py-3 text-right font-semibold ${color}`}>
                         {gapAvg > 0 ? `+${fmt}` : fmt}
                       </td>
-                    )
-                  })()}
-                  <td className="px-4 py-3 text-right text-gray-400 text-xs">
-                    {selectedId === row.sub_region_id ? '▲' : '▼'}
-                  </td>
-                </tr>
-              ))
+                      <td className="px-4 py-3 text-right text-gray-400 text-xs">
+                        {isOpen ? '▲' : '▼'}
+                      </td>
+                    </tr>
+
+                    {/* Inline dropdown — candidates */}
+                    {isOpen && (
+                      <tr className="border-b border-gray-200">
+                        <td colSpan={5} className="p-0">
+                          <div className="bg-gray-50 border-t border-gray-100">
+                            {loadingCandidates ? (
+                              <div className="px-6 py-5 text-center text-sm text-gray-400">Yuklanmoqda...</div>
+                            ) : candidates.length === 0 ? (
+                              <div className="px-6 py-5 text-center text-sm text-gray-400">Kandidat topilmadi</div>
+                            ) : (
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b border-gray-200 bg-gray-100">
+                                    <th className="text-left px-6 py-2.5 font-medium text-gray-500 text-xs">#</th>
+                                    <th className="text-left px-4 py-2.5 font-medium text-gray-500 text-xs">Ism</th>
+                                    <th className="text-left px-4 py-2.5 font-medium text-gray-500 text-xs">Tel</th>
+                                    <th className="text-right px-4 py-2.5 font-medium text-gray-500 text-xs cursor-pointer select-none hover:text-gray-800" onClick={() => toggleSort('rating')}>
+                                      Rating<SortIcon col="rating" />
+                                    </th>
+                                    <th className="text-right px-4 py-2.5 font-medium text-gray-500 text-xs cursor-pointer select-none hover:text-gray-800" onClick={() => toggleSort('activity_score')}>
+                                      Faollik<SortIcon col="activity_score" />
+                                    </th>
+                                    <th className="text-right px-4 py-2.5 font-medium text-gray-500 text-xs cursor-pointer select-none hover:text-gray-800" onClick={() => toggleSort('points')}>
+                                      Ball<SortIcon col="points" />
+                                    </th>
+                                    <th className="text-right px-4 py-2.5 font-medium text-gray-500 text-xs cursor-pointer select-none hover:text-gray-800" onClick={() => toggleSort('done_month')}>
+                                      Oy done<SortIcon col="done_month" />
+                                    </th>
+                                    <th className="text-right px-4 py-2.5 font-medium text-gray-500 text-xs cursor-pointer select-none hover:text-gray-800" onClick={() => toggleSort('total_done')}>
+                                      Jami done<SortIcon col="total_done" />
+                                    </th>
+                                    {canAdd && <th className="px-4 py-2.5 w-24"></th>}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {sortedCandidates.map((c, i) => (
+                                    <tr key={c.id} className={`border-b border-gray-100 ${c.ignored ? 'opacity-50' : 'hover:bg-white'}`}>
+                                      <td className="px-6 py-2.5 text-gray-400 text-xs">{i + 1}</td>
+                                      <td className="px-4 py-2.5 font-medium text-gray-900">
+                                        {c.name}
+                                        {c.ignored && <span className="ml-2 text-xs text-red-400 font-normal">Qo&apos;shilmaydi</span>}
+                                      </td>
+                                      <td className="px-4 py-2.5 text-gray-600 text-xs">{c.phone_number ?? '—'}</td>
+                                      <td className="px-4 py-2.5 text-right text-gray-700 text-xs">
+                                        {c.rating != null ? c.rating.toFixed(1) : '—'}
+                                      </td>
+                                      <td className="px-4 py-2.5 text-right text-gray-700 text-xs">
+                                        {c.activity_score != null ? c.activity_score : '—'}
+                                      </td>
+                                      <td className="px-4 py-2.5 text-right text-gray-700 text-xs">
+                                        {c.points != null ? c.points : '—'}
+                                      </td>
+                                      <td className="px-4 py-2.5 text-right font-semibold text-gray-900 text-xs">{c.done_month}</td>
+                                      <td className="px-4 py-2.5 text-right text-gray-500 text-xs">{c.total_done}</td>
+                                      {canAdd && (
+                                        <td className="px-4 py-2.5 text-right">
+                                          {!c.ignored && (
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); addDriver(c) }}
+                                              disabled={addingId === c.id}
+                                              className="px-3 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                            >
+                                              {addingId === c.id ? '...' : '+ Elite'}
+                                            </button>
+                                          )}
+                                        </td>
+                                      )}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })
             )}
           </tbody>
         </table>
       </div>
-
-      {/* Candidates panel */}
-      {selectedId && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-            <p className="text-sm font-semibold text-gray-700">Kandidatlar: {selectedName}</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Home sub-region bo&apos;yicha, shu oy done orderlar bo&apos;yicha tartiblangan
-            </p>
-          </div>
-
-          {loadingCandidates ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-400">Yuklanmoqda...</div>
-          ) : candidates.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-gray-400">Kandidat topilmadi</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">#</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Ism</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Tel</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600 cursor-pointer select-none hover:text-gray-900" onClick={() => toggleSort('rating')}>
-                    Rating<SortIcon col="rating" />
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600 cursor-pointer select-none hover:text-gray-900" onClick={() => toggleSort('activity_score')}>
-                    Faollik<SortIcon col="activity_score" />
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600 cursor-pointer select-none hover:text-gray-900" onClick={() => toggleSort('points')}>
-                    Ball<SortIcon col="points" />
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600 cursor-pointer select-none hover:text-gray-900" onClick={() => toggleSort('done_month')}>
-                    Oy done<SortIcon col="done_month" />
-                  </th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600 cursor-pointer select-none hover:text-gray-900" onClick={() => toggleSort('total_done')}>
-                    Jami done<SortIcon col="total_done" />
-                  </th>
-                  {canAdd && <th className="px-4 py-3 w-20"></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedCandidates.map((c, i) => (
-                  <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-400">{i + 1}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{c.phone_number ?? '—'}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">
-                      {c.rating != null ? c.rating.toFixed(1) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-700">
-                      {c.activity_score != null ? c.activity_score : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-700">
-                      {c.points != null ? c.points : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{c.done_month}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">{c.total_done}</td>
-                    {canAdd && (
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); addDriver(c) }}
-                          disabled={addingId === c.id}
-                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                        >
-                          {addingId === c.id ? '...' : '+ Elite'}
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
     </div>
   )
 }
