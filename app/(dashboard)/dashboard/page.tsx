@@ -255,7 +255,7 @@ export default async function DashboardPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-sm font-semibold text-gray-800">Aprel maqsadi — Andijon shahar</p>
+            <p className="text-sm font-semibold text-gray-800">Aprel maqsadi — Andijon (shahar + 4 tuman)</p>
             <p className="text-xs text-gray-400 mt-0.5">Maqsad: {ANDIJON_CITY_GOAL.toLocaleString()} order</p>
           </div>
           <div className="text-right">

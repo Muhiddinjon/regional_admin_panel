@@ -7,7 +7,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { driver_id, tier = 'A', added_by = 'admin' } = body
 
-  if (!driver_id || typeof driver_id !== 'number') {
+  const driverIdNum = Number(driver_id)
+  if (!driver_id || isNaN(driverIdNum) || driverIdNum <= 0) {
     return NextResponse.json({ error: 'driver_id required' }, { status: 400 })
   }
 
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
       `SELECT id, first_name, last_name, phone_number
        FROM customers
        WHERE id = $1 AND deleted_at IS NULL`,
-      [driver_id]
+      [driverIdNum]
     )
 
     if (res.rows.length === 0) {
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     }
 
     const driver = res.rows[0]
-    const id = String(driver_id)
+    const id = String(driverIdNum)
 
     // Redis ga yozish
     await redis.sadd(K.ELITE_DRIVERS, id)
@@ -56,12 +57,13 @@ export async function DELETE(req: NextRequest) {
   const body = await req.json()
   const { driver_id } = body
 
-  if (!driver_id || typeof driver_id !== 'number') {
+  const driverIdNum = Number(driver_id)
+  if (!driver_id || isNaN(driverIdNum) || driverIdNum <= 0) {
     return NextResponse.json({ error: 'driver_id required' }, { status: 400 })
   }
 
   try {
-    const id = String(driver_id)
+    const id = String(driverIdNum)
     await redis.srem(K.ELITE_DRIVERS, id)
     await redis.del(K.ELITE_DRIVER(id))
 

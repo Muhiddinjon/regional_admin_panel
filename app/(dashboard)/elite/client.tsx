@@ -54,7 +54,7 @@ function getInactiveBadge(days: number): { label: string; color: string } {
 }
 
 export default function EliteClient({ role }: { role: string }) {
-  const isPm = role === 'pm'
+  const isPm = ['pm', 'rm', 'ops', 'checker'].includes(role)
 
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [callMap, setCallMap] = useState<Map<string, CallRecord>>(new Map())
@@ -85,6 +85,10 @@ export default function EliteClient({ role }: { role: string }) {
   // Sort state
   const [sortCol, setSortCol] = useState<SortCol>('inactive_days')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  // Remove confirm modal
+  const [confirmRemove, setConfirmRemove] = useState<{ id: number; name: string } | null>(null)
+  const [removing, setRemoving] = useState(false)
 
   // Add modal state
   const [showAddModal, setShowAddModal] = useState(false)
@@ -220,17 +224,23 @@ export default function EliteClient({ role }: { role: string }) {
     } catch { setAddError('Server xatosi') } finally { setAddLoading(false) }
   }
 
-  async function removeDriver(driverId: number, name: string) {
-    if (!confirm(`"${name}" ni elite dan chiqarasizmi?`)) return
+  function removeDriver(driverId: number, name: string) {
+    setConfirmRemove({ id: driverId, name })
+  }
+
+  async function doRemove() {
+    if (!confirmRemove) return
+    setRemoving(true)
     try {
       const res = await fetch('/api/elite-manage', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driver_id: driverId }),
+        body: JSON.stringify({ driver_id: confirmRemove.id }),
       })
       if (!res.ok) throw new Error('Xatolik')
+      setConfirmRemove(null)
       loadData()
-    } catch { alert("O'chirishda xatolik") }
+    } catch { alert("O'chirishda xatolik") } finally { setRemoving(false) }
   }
 
   function toggleSort(col: SortCol) {
@@ -354,6 +364,40 @@ export default function EliteClient({ role }: { role: string }) {
                 className="text-sm px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition disabled:opacity-50"
               >
                 {addLoading ? '...' : "Qo'shish"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove confirm modal */}
+      {confirmRemove && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+          onClick={() => !removing && setConfirmRemove(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-bold text-gray-900 text-base">Elite dan chiqarish</h2>
+            <p className="text-sm text-gray-600">
+              <span className="font-semibold">&quot;{confirmRemove.name}&quot;</span> ni Elite ro&apos;yxatidan chiqarasizmi?
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmRemove(null)}
+                disabled={removing}
+                className="text-sm px-4 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                Yo&apos;q
+              </button>
+              <button
+                onClick={doRemove}
+                disabled={removing}
+                className="text-sm px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {removing ? '...' : 'Ha, chiqarish'}
               </button>
             </div>
           </div>
